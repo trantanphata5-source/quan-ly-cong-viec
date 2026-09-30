@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quản lý đầu việc | PC Vũng Tàu</title>
+<meta name="description" content="Trang ghi nhớ, quản lý đầu việc theo nhóm (kéo thả) - Công ty Điện lực Vũng Tàu">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-top">
+    <div class="brand">
+      <small>CÔNG TY ĐIỆN LỰC VŨNG TÀU - EVNHCMC</small>
+      <h1>QUẢN LÝ ĐẦU VIỆC</h1>
+    </div>
+    <div class="actions">
+      <div class="search"><span>🔍</span><input id="search" type="search" placeholder="Tìm công việc..." autocomplete="off"></div>
+      <button class="btn btn-outline" id="syncBtn" title="Kết nối & đồng bộ Google Sheet"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">Chỉ lưu trên máy</span></button>
+      <button class="btn btn-primary" id="newTaskBtn">＋ <span class="lbl">Việc mới</span></button>
+      <button class="btn btn-outline" id="newGroupBtn">＋ <span class="lbl">Nhóm mới</span></button>
+      <button class="btn btn-outline" id="exportBtn" title="Xuất file CSV (mở bằng Excel)">⤓ <span class="lbl">Xuất Excel</span></button>
+    </div>
+  </div>
+  <div class="header-sub">
+    <div class="stats" id="stats"></div>
+    <label class="toggle"><input type="checkbox" id="hideDone"> Ẩn việc đã hoàn thành</label>
+  </div>
+</header>
+
+<main class="board" id="board"></main>
+
+<!-- Modal: công việc -->
+<div class="backdrop" id="taskModal">
+  <form class="modal" id="taskForm" autocomplete="off">
+    <div class="modal-head"><h3 id="taskModalTitle">Thêm công việc</h3><button type="button" class="icon-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <label class="f">Tên công việc *<input id="fTitle" required maxlength="300" placeholder="VD: Rà soát giá bán điện tháng 10"></label>
+      <div class="row2">
+        <label class="f">Nhóm công việc<select id="fGroup"></select></label>
+        <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)">Cấp độ
+          <div class="seg">
+            <label><input type="radio" name="fLevel" value="main">★ Việc chính</label>
+            <label><input type="radio" name="fLevel" value="sub" checked>Việc khác</label>
+          </div>
+        </div>
+      </div>
+      <div class="row2">
+        <label class="f">Thời hạn<input id="fDeadline" type="date"></label>
+        <label class="f">Trạng thái<select id="fStatus"><option value="todo">Chưa làm</option><option value="doing">Đang làm</option><option value="done">Hoàn thành</option></select></label>
+      </div>
+      <label class="f">Mức ưu tiên<select id="fPriority"><option value="normal">Bình thường</option><option value="high">Quan trọng</option><option value="urgent">Khẩn</option></select></label>
+      <label class="f">Nội dung chi tiết / ghi chú<textarea id="fDetail" placeholder="Nội dung cần nhớ, đầu mối phối hợp, số văn bản..."></textarea></label>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-danger" id="deleteTaskBtn">🗑 Xóa</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-outline" data-close>Hủy</button>
+      <button type="submit" class="btn btn-primary">Lưu</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal: nhóm -->
+<div class="backdrop" id="groupModal">
+  <form class="modal" id="groupForm" style="max-width:420px" autocomplete="off">
+    <div class="modal-head"><h3 id="groupModalTitle">Thêm nhóm công việc</h3><button type="button" class="icon-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <label class="f">Tên nhóm *<input id="gName" required maxlength="80" placeholder="VD: An toàn"></label>
+      <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;color:var(--muted)">Màu nhóm<div class="swatches" id="swatches"></div></div>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-outline" data-close>Hủy</button>
+      <button type="submit" class="btn btn-primary">Lưu</button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal: xác nhận -->
+<div class="backdrop" id="confirmModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-head"><h3>Xác nhận</h3><button type="button" class="icon-btn" data-close>✕</button></div>
+    <div class="modal-body"><p id="confirmText"></p></div>
+    <div class="modal-foot"><span class="spacer"></span><button class="btn btn-outline" data-close>Hủy</button><button class="btn btn-danger" id="confirmOk">Xóa</button></div>
+  </div>
+</div>
+
+<!-- Modal: đồng bộ -->
+<div class="backdrop" id="syncModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Kết nối Google Sheet</h3><button type="button" class="icon-btn" data-close>✕</button></div>
+    <div class="modal-body">
+      <div class="status-line"><span class="sync-dot" id="syncDot2"></span><span id="syncText">Chưa kết nối</span></div>
+      <label class="f">URL ứng dụng web Apps Script (đuôi /exec)<input id="apiInput" placeholder="https://script.google.com/macros/s/.../exec"></label>
+      <div class="note">
+        <b>Cách lấy URL (làm 1 lần):</b>
+        <ol>
+          <li>Mở Google Sheet cơ sở dữ liệu → <b>Tiện ích mở rộng → Apps Script</b>.</li>
+          <li>Dán toàn bộ nội dung file <b>google_apps_script.js</b> vào Code.gs → Lưu.</li>
+          <li><b>Triển khai → Triển khai mới → Ứng dụng web</b>; Thực thi: <b>Tôi</b>; Quyền truy cập: <b>Bất kỳ ai</b>.</li>
+          <li>Sao chép URL đuôi <b>/exec</b> dán vào ô trên → bấm <b>Lưu & kết nối</b>.</li>
+        </ol>
+        Dữ liệu luôn được lưu trên máy trước, sau đó tự đẩy lên Sheet (sheet <b>NhomCongViec</b> và <b>CongViec</b>).
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="disconnectBtn">Ngắt kết nối</button>
+      <span class="spacer"></span>
+      <button class="btn btn-outline" id="pullBtn">⟳ Tải lại từ Sheet</button>
+      <button class="btn btn-primary" id="saveApiBtn">Lưu & kết nối</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
