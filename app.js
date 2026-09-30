@@ -181,9 +181,14 @@
 
   function setSync(kind, text) {
     state.sync = kind;
-    ['syncDot', 'syncDot2'].forEach(function (id) { $(id).className = 'sync-dot' + (kind === 'local' ? '' : ' ' + kind); });
-    $('syncLabel').textContent = text;
-    $('syncText').textContent = state.api ? text : 'Chưa kết nối — dữ liệu chỉ lưu trên trình duyệt này';
+    ['syncDot', 'syncDot2'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.className = 'sync-dot' + (kind === 'local' ? '' : ' ' + kind);
+    });
+    var lbl = $('syncLabel');
+    if (lbl) lbl.textContent = text;
+    var txt = $('syncText');
+    if (txt) txt.textContent = state.api ? text : 'Chưa kết nối — dữ liệu chỉ lưu trên trình duyệt này';
   }
 
   /* ------------------------------ Render ------------------------------ */
@@ -492,7 +497,14 @@
   });
 
   /* ------------------------------ Đồng bộ UI ------------------------------ */
-  $('syncBtn').addEventListener('click', function () { $('apiInput').value = state.api; setSync(state.sync, $('syncLabel').textContent); openModal('syncModal'); });
+  var syncBtnEl = $('syncBtn');
+  if (syncBtnEl) {
+    syncBtnEl.addEventListener('click', function () {
+      $('apiInput').value = state.api;
+      setSync(state.sync, $('syncLabel') ? $('syncLabel').textContent : '');
+      openModal('syncModal');
+    });
+  }
   $('saveApiBtn').addEventListener('click', function () {
     var url = $('apiInput').value.trim();
     if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(url)) { toast('URL phải bắt đầu bằng https://script.google.com/...', true); return; }
