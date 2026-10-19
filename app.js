@@ -60,7 +60,8 @@
     syncAt: '',
     search: '', hideDone: false,
     editingTaskId: null, editingGroupId: null,
-    dragId: null
+    dragId: null,
+    expanded: {}             // id công việc đang xổ nội dung chi tiết
   };
   var $ = function (id) { return document.getElementById(id); };
   var pushTimer = null, confirmAction = null;
@@ -280,7 +281,8 @@
 
   function renderCard(t) {
     var el = document.createElement('div');
-    el.className = 'card' + (t.level === 'main' ? ' main' : '') + (t.status === 'done' ? ' done' : '');
+    var isOpen = !!state.expanded[t.id];
+    el.className = 'card' + (t.level === 'main' ? ' main' : '') + (t.status === 'done' ? ' done' : '') + (isOpen ? ' expanded' : '');
     el.draggable = true;
     el.dataset.id = t.id;
     var tags = [];
@@ -291,9 +293,19 @@
     el.innerHTML =
       '<input type="checkbox" title="Đánh dấu hoàn thành"' + (t.status === 'done' ? ' checked' : '') + '>' +
       '<div class="card-body"><div class="title">' + esc(t.title) + '</div>' +
-      (t.detail ? '<div class="detail">' + esc(t.detail) + '</div>' : '') +
+      (t.detail ? '<div class="detail">' + esc(t.detail) + '</div>' +
+        '<button type="button" class="detail-toggle" data-a="toggle"' + (isOpen ? '' : ' hidden') + '>' +
+        '<span class="chev">▾</span><span class="tlbl">' + (isOpen ? 'Thu gọn' : 'Xem thêm') + '</span></button>' : '') +
       '<div class="meta">' + tags.join('') + '</div></div>' +
       '<div class="card-actions"><button class="icon-btn" data-a="edit" title="Sửa">✎</button><button class="icon-btn del" data-a="del" title="Xóa">🗑</button></div>';
+
+    // Chỉ hiện nút xổ xuống khi nội dung bị cắt bớt
+    if (t.detail && !isOpen) {
+      requestAnimationFrame(function () {
+        var d = el.querySelector('.detail'), b = el.querySelector('.detail-toggle');
+        if (d && b && d.scrollHeight > d.clientHeight + 1) b.hidden = false;
+      });
+    }
 
     el.querySelector('input').addEventListener('change', function (e) {
       t.status = e.target.checked ? 'done' : 'todo'; t.updatedAt = stamp(); commit();
@@ -302,6 +314,14 @@
       if (e.target.matches('input')) return;
       var a = e.target.closest('[data-a]');
       if (a && a.dataset.a === 'del') { deleteTask(t.id); return; }
+      if (a && a.dataset.a === 'toggle') {
+        e.stopPropagation();
+        var open = !el.classList.contains('expanded');
+        el.classList.toggle('expanded', open);
+        if (open) state.expanded[t.id] = true; else delete state.expanded[t.id];
+        a.querySelector('.tlbl').textContent = open ? 'Thu gọn' : 'Xem thêm';
+        return;
+      }
       openTaskModal(t.id);
     });
     el.addEventListener('dragstart', function (e) {
